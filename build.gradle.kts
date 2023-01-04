@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "crpth"
-version = "1.0.1"
+version = "1.0.2"
 
 val lwjglVersion = "3.3.1"
 

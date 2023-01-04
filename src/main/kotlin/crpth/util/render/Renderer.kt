@@ -2,15 +2,12 @@ package crpth.util.render
 
 import crpth.util.ResourceManager
 import crpth.util.Window
-import crpth.util.experimental.TruetypeFont
-import crpth.util.render.font.FontManager
-import crpth.util.render.font.TextureCharacters
+import crpth.util.render.font.TruetypeFont
 import crpth.util.vec.*
 import org.lwjgl.opengl.GL11.*
-import java.awt.Font
 import kotlin.math.max
 
-class Renderer(val resourceManager: ResourceManager, val windowGetter: ()->Window) {
+class Renderer(val windowGetter: ()->Window) {
 
     object Constants {
 
@@ -18,13 +15,11 @@ class Renderer(val resourceManager: ResourceManager, val windowGetter: ()->Windo
 
     }
 
+    @Deprecated("This constructor is only for version-compatibility.", ReplaceWith("Renderer(windowGetter)"))
+    constructor(resourceManager: ResourceManager, windowGetter: ()->Window) : this(windowGetter)
+
     var doDrawOverline = false
     var doDrawUnderline = false
-
-    val fontManager = FontManager(resourceManager, 256)
-
-    val fontEn = fontManager.fontMonospaced
-    val fontJa = fontManager.fontYumincho
 
     @Suppress("NOTHING_TO_INLINE")
     inline fun vertex2f(vec: Vec2f) = glVertex2f(vec.x, vec.y)
@@ -161,19 +156,6 @@ class Renderer(val resourceManager: ResourceManager, val windowGetter: ()->Windo
     /**
      * @return the width of the rendered character.
      */
-    @Deprecated("Please use Truetype Font version.")
-    fun renderChar(char: Char, tex: TextureCharacters, position: Vec2f, height: Float, fillColor: Vec4f): Float {
-
-        val m = tex.getOrLoad(resourceManager, char)
-
-        glColor4f(fillColor)
-        return renderTextureAA(m, position, height)
-
-    }
-
-    /**
-     * @return the width of the rendered character.
-     */
     fun renderChar(char: Char, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f): Float {
 
         val tex = try {
@@ -199,29 +181,6 @@ class Renderer(val resourceManager: ResourceManager, val windowGetter: ()->Windo
         return height * (info.advanceWidth / 1000.0f)
 
     }
-
-    @Deprecated("Please use Truetype Font version.")
-    fun renderCharWithBorder(char: Char, tex: TextureCharacters, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f, thickness: Int=1): Float {
-
-        val m = tex.getOrLoad(resourceManager, char)
-
-        for(p in 1 .. max(thickness, 1)) {
-
-            val dif = pixels(p)
-
-            glColor4f(strokeColor)
-            renderTextureAA(m, position + dif.dropY(), height)
-            renderTextureAA(m, position - dif.dropY(), height)
-            renderTextureAA(m, position + dif.dropX(), height)
-            renderTextureAA(m, position - dif.dropX(), height)
-
-        }
-
-        glColor4f(fillColor)
-        return renderTextureAA(m, position, height)
-
-    }
-
     fun renderCharWithBorder(char: Char, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f, thickness: Int=1): Float {
 
         val tex = try {
@@ -265,94 +224,15 @@ class Renderer(val resourceManager: ResourceManager, val windowGetter: ()->Windo
 
     }
 
-    @Deprecated("Please use Truetype Font version.")
-    fun getTcOrDynamicallyGen(char: Char, dfont: Font=fontJa) = when(char) {
-
-        in fontManager.getOrLoad(fontEn).textureMap ->fontManager.getOrLoad(fontEn)
-        in fontManager.getOrLoad(fontJa).textureMap -> fontManager.getOrLoad(fontJa)
-        else -> {
-            val tc = fontManager.getOrLoad(dfont)
-            tc.getOrLoad(resourceManager, char)
-            tc
-        }
-
-    }
-
-    @Deprecated("Use Truetype Font version.")
-    fun getCharAR(char: Char, tex: TextureCharacters?): Float {
-
-        val c = (tex ?: getTcOrDynamicallyGen(char)).getOrLoad(resourceManager, char)
-
-        c.bind()
-        val r = c.getAspectRatio()
-        c.debind()
-
-        return r
-
-    }
-
-    @Deprecated("Use Truetype Font version.")
-    fun getStringAR(str: String, tex: TextureCharacters?): Float {
-
-        return str.sumOf { getCharAR(it, tex).toDouble() }.toFloat()
-
-    }
-
     fun getCharAR(char: Char, ttf: TruetypeFont): Float {
 
-        val c = try {
-            ttf.getOrLoad(char)
-        } catch(e: Throwable) {
-            return 0.5f
-        }
-
-        c.bind()
-        val r = c.getAspectRatio()
-        c.debind()
-
-        return r
+        return ttf.getAdvanceWidth(char) / 1000f
 
     }
 
     fun getStringAR(str: String, ttf: TruetypeFont): Float {
 
         return str.sumOf { getCharAR(it, ttf).toDouble() }.toFloat()
-
-    }
-
-    /**
-     * Renders the text with the specified [str]. [str] must not contain any line-separator. To render multiline texts, use [renderStringMultiLine] instead.
-     *
-     * @see renderStringMultiLine
-     * @see renderStringLineCentered
-     */
-    fun renderStringLine(str: String, tex: TextureCharacters?, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0.0f): Float {
-
-        var offset = Vec2f.ZERO
-
-        str.forEach {
-
-            val t = tex ?: getTcOrDynamicallyGen(it)
-
-            if(strokeColor != null) {
-                offset = offset.plus(renderCharWithBorder(it, t, position.plus(offset), height, fillColor, strokeColor, thickness) + spacing, 0f)
-            } else {
-                offset = offset.plus(renderChar(it, t, position.plus(offset), height, fillColor) + spacing, 0f)
-            }
-
-        }
-
-        if(doDrawOverline) {
-            glColor3f(1f, 1f, 1f)
-            renderLineStrip(ulongArrayOf(position.plus(0.0f, height).data, position.plus(offset).plus(0f, height).data))
-        }
-
-        if(doDrawUnderline) {
-            glColor3f(1f, 1f, 1f)
-            renderLineStrip(ulongArrayOf(position.plus(0.0f, 0.0f).data, position.plus(offset).plus(0f, 0f).data))
-        }
-
-        return offset.x
 
     }
 
@@ -386,18 +266,6 @@ class Renderer(val resourceManager: ResourceManager, val windowGetter: ()->Windo
 
     }
 
-    fun renderStringLine(str: String, font: Font, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0f) =
-        renderStringLine(str, fontManager.getOrLoad(font), position, height, fillColor, strokeColor, thickness, spacing)
-
-    @Deprecated("Use Truetype Font version.")
-    fun renderStringMultiLine(str: String, font: Font, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0f) {
-
-        str.lines().forEachIndexed { i, line ->
-            renderStringLine(line, font, position.minus(0f, (height+spacing)*i), height, fillColor, strokeColor, thickness, spacing)
-        }
-
-    }
-
     fun renderStringMultiLine(str: String, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0f) {
 
         str.lines().forEachIndexed { i, line ->
@@ -406,19 +274,6 @@ class Renderer(val resourceManager: ResourceManager, val windowGetter: ()->Windo
 
     }
 
-    @Deprecated("Use Truetype Font version.")
-    fun renderStringLineCentered(str: String, tex: TextureCharacters?, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0f): Float {
-
-        val pos = position.minus(height*getStringAR(str, tex)/2 + spacing*(str.length-1), height/2)
-
-        return renderStringLine(str, tex, pos, height, fillColor, strokeColor, thickness, spacing)
-
-    }
-
-    @Deprecated("Use Truetype Font version.")
-    fun renderStringLineCentered(str: String, font: Font, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0f) =
-        renderStringLineCentered(str, fontManager.getOrLoad(font), position, height, fillColor, strokeColor, thickness, spacing)
-
     fun renderStringLineCentered(str: String, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0f): Float {
 
         val pos = position.minus(height*getStringAR(str, ttf)/2 + spacing*(str.length-1), height/2)
@@ -426,16 +281,6 @@ class Renderer(val resourceManager: ResourceManager, val windowGetter: ()->Windo
         return renderStringLine(str, ttf, pos, height, fillColor, strokeColor, thickness, spacing)
 
     }
-
-    @Deprecated("Use Truetype Font version.")
-    fun renderStringMultiLineCentered(str: String, font: Font, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0f) {
-
-        str.lines().forEachIndexed { i, line ->
-            renderStringLineCentered(line, font, position.minus(0f, (height+spacing)*i), height, fillColor, strokeColor, thickness, spacing)
-        }
-
-    }
-
     fun renderStringMultiLineCentered(str: String, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0f) {
 
         str.lines().forEachIndexed { i, line ->

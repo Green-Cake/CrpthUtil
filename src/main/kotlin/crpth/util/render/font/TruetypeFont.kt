@@ -1,4 +1,4 @@
-package crpth.util.experimental
+package crpth.util.render.font
 
 import crpth.util.ptr.IntPtr
 import crpth.util.render.Texture
@@ -6,13 +6,11 @@ import crpth.util.vec.Vec2i
 import crpth.util.vec.vec
 import org.lwjgl.BufferUtils
 import org.lwjgl.opengl.GL11
-import org.lwjgl.stb.STBTTAlignedQuad
 import org.lwjgl.stb.STBTTFontinfo
 import org.lwjgl.stb.STBTruetype.*
 import org.lwjgl.system.MemoryStack
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.math.roundToInt
 
 class TruetypeFont(path: Path) {
 
@@ -55,7 +53,18 @@ class TruetypeFont(path: Path) {
 
     fun getOrLoad(charInUtf8: Char) = getTexture(charInUtf8) ?: loadChar(charInUtf8)
 
-    fun getCharInfo(charInUtf8: Char): CharData = charInfoMap[charInUtf8.code]!!
+    fun getCharInfo(charInUtf8: Char): CharData = charInfoMap[charInUtf8.code] ?: run {
+        loadChar(charInUtf8)
+        charInfoMap[charInUtf8.code]!!
+    }
+
+    fun getAdvanceWidth(charInUtf8: Char) = charInfoMap[charInUtf8.code]?.advanceWidth ?: MemoryStack.stackPush().use {
+
+        val pAdvanceWidth = it.mallocInt(1)
+        stbtt_GetCodepointHMetrics(fontInfo, charInUtf8.code, pAdvanceWidth, null)
+        pAdvanceWidth.get()
+
+    }
 
     fun loadChar(codepoint: Int): Texture {
 

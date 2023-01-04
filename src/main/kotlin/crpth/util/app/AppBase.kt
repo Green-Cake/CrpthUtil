@@ -126,8 +126,6 @@ abstract class AppBase(val title: String, val resourceManager: ResourceManager) 
         GL11.glClearColor(0f, 0f, 0f, 0f)
         GL11.glClear(GL11.GL_COLOR_BUFFER_BIT or GL11.GL_DEPTH_BUFFER_BIT)
 
-        renderer.fontManager.init()
-
         onRender(renderer)
 
     }
