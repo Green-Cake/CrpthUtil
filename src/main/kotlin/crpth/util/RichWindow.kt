@@ -1,10 +1,17 @@
 package crpth.util
 
+import crpth.util.annotation.RequireGLFWInit
 import crpth.util.mouse.MouseAction
 import crpth.util.mouse.MouseButton
 import crpth.util.vec.Vec2f
 import org.lwjgl.glfw.GLFW
+import org.lwjgl.system.MemoryStack
 
+/**
+ * [Window] is so simple an inline class that it cannot deal with keyboard, cursor or something.
+ *
+ * @see update
+ */
 class RichWindow(val window: Window, var fOnClicked: (button: MouseButton, action: MouseAction)->Boolean) {
 
     val keyMapPrev = mutableSetOf<Int>()
@@ -13,6 +20,10 @@ class RichWindow(val window: Window, var fOnClicked: (button: MouseButton, actio
     var cursorPos = Vec2f.ZERO
         private set
 
+    /**
+     * Call this after [GLFW.glfwInit] is called.
+     */
+    @RequireGLFWInit
     fun init() {
 
         val windowSize = window.getWindowSize()
@@ -27,10 +38,14 @@ class RichWindow(val window: Window, var fOnClicked: (button: MouseButton, actio
             onClicked(MouseButton.from(button), MouseAction.from(action))
         }
 
-        val cx = DoubleArray(1)
-        val cy = DoubleArray(1)
-        GLFW.glfwGetCursorPos(window.id, cx, cy)
-        cursorPos = Vec2f(cx[0].toFloat()/ windowSize.x, 1.0f - cy[0].toFloat()/ windowSize.y) *2f - Vec2f.ONE
+        MemoryStack.stackPush().use {
+
+            val cx = it.mallocDouble(1)
+            val cy = it.mallocDouble(1)
+            GLFW.glfwGetCursorPos(window.id, cx, cy)
+            cursorPos = Vec2f(cx[0].toFloat() / windowSize.x, 1.0f - cy[0].toFloat() / windowSize.y) *2f - Vec2f.ONE
+
+        }
 
     }
 

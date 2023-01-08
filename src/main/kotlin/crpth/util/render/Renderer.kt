@@ -2,11 +2,13 @@ package crpth.util.render
 
 import crpth.util.ResourceManager
 import crpth.util.Window
+import crpth.util.math.sumOf
 import crpth.util.render.font.TruetypeFont
 import crpth.util.vec.*
 import org.lwjgl.opengl.GL11.*
 import kotlin.math.max
 
+@OptIn(ExperimentalUnsignedTypes::class)
 class Renderer(val windowGetter: ()->Window) {
 
     object Constants {
@@ -15,32 +17,68 @@ class Renderer(val windowGetter: ()->Window) {
 
     }
 
+    companion object {
+
+        @Suppress("NOTHING_TO_INLINE")
+        inline fun vertex2f(vec: Vec2f) = glVertex2f(vec.x, vec.y)
+
+        @Suppress("NOTHING_TO_INLINE")
+        inline fun glColor4f(vec4f: Vec4f) = glColor4f(vec4f.a, vec4f.b, vec4f.c, vec4f.d)
+
+    }
+
     @Deprecated("This constructor is only for version-compatibility.", ReplaceWith("Renderer(windowGetter)"))
     constructor(resourceManager: ResourceManager, windowGetter: ()->Window) : this(windowGetter)
 
+    /**
+     * If true, when rendering any text, also draws overline automatically.
+     */
     var doDrawOverline = false
+
+    /**
+     * If true, when rendering any text, also draws underline automatically.
+     */
     var doDrawUnderline = false
 
-    @Suppress("NOTHING_TO_INLINE")
-    inline fun vertex2f(vec: Vec2f) = glVertex2f(vec.x, vec.y)
-
-    @Suppress("NOTHING_TO_INLINE")
-    inline fun glColor4f(vec4f: Vec4f) = glColor4f(vec4f.a, vec4f.b, vec4f.c, vec4f.d)
-
+    /**
+     * Invokes glColor4f with each byte value divided by 255, so 0 to 255 in a byte will be mapped into 0f ~ 1f in float.
+     * @param color byte values in order of red, green, blue and alpha.
+     */
     fun color4b(color: Vec4b) {
         glColor4f(color.r.resizeToInt()/255f, color.g.resizeToInt()/255f,  color.b.resizeToInt()/255f, color.a.resizeToInt()/255f)
     }
 
+    /**
+     * Calculates the value meaning [p] dot(s) in screen, with no consideration of any matrix contexts.
+     * @param p pixel(s)
+     * @return a calculated value you can use for [glVertex2f] or [vertex2f]
+     */
     fun pixels(p: Int): Vec2f {
         val wsize = windowGetter().getWindowSize()
         return Constants.SIZE_FULL / wsize.toVec2f() * p.toFloat()
     }
 
+    /**
+     * Calculates the value meaning [p] dot(s) in screen, with no consideration of any matrix contexts.
+     * @param p pixel(s)
+     * @return a calculated value you can use for [glVertex2f] or [vertex2f]
+     */
     fun pixels(p: Vec2i): Vec2f {
         val wsize = windowGetter().getWindowSize()
         return Constants.SIZE_FULL / wsize.toVec2f() * p.toVec2f()
     }
 
+    /**
+     * a simple syntax sugar of
+     * ```kotlin
+     * glBegin(mode)
+     * block()
+     * glEnd()
+     * ```
+     * @param mode mode value
+     * @param block call vertex or something to draw.
+     * @see org.lwjgl.opengl.GL11
+     */
     inline fun draw(mode: Int, block: ()->Unit) {
         glBegin(mode)
         block()
@@ -60,7 +98,7 @@ class Renderer(val windowGetter: ()->Window) {
     }
 
     @OptIn(ExperimentalUnsignedTypes::class)
-    fun renderLineStrip(positions: ULongArray) {
+    fun renderLineStrip(vararg positions: ULong) {
 
         draw(GL_LINE_STRIP) {
             positions.forEach {
@@ -97,6 +135,7 @@ class Renderer(val windowGetter: ()->Window) {
 
     }
 
+    @Deprecated("Use Vec2f instead!", ReplaceWith("renderTexture(texture, position, vec(width, height), srcStart, srcEnd)"))
     fun renderTexture(texture: ITexture, position: Vec2f, height: Float, width: Float, srcStart: Vec2f = Vec2f.ZERO, srcEnd: Vec2f = Vec2f.ONE) {
 
         texture.bind()
@@ -120,6 +159,9 @@ class Renderer(val windowGetter: ()->Window) {
         texture.debind()
 
     }
+
+    fun renderTextureCentered(texture: ITexture, position: Vec2f, size: Vec2f, srcStart: Vec2f = Vec2f.ZERO, srcEnd: Vec2f = Vec2f.ONE)
+    = renderTexture(texture, position - size / 2f, size, srcStart, srcEnd)
 
     /**
      * AA means Auto Aspect
@@ -181,6 +223,10 @@ class Renderer(val windowGetter: ()->Window) {
         return height * (info.advanceWidth / 1000.0f)
 
     }
+
+    /**
+     * @return the width of the rendered character.
+     */
     fun renderCharWithBorder(char: Char, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f, thickness: Int=1): Float {
 
         val tex = try {
@@ -224,19 +270,26 @@ class Renderer(val windowGetter: ()->Window) {
 
     }
 
-    fun getCharAR(char: Char, ttf: TruetypeFont): Float {
+    /**
+     * @return width per height.
+     */
+    fun getCharAspectRatio(char: Char, ttf: TruetypeFont): Float {
 
         return ttf.getAdvanceWidth(char) / 1000f
 
     }
 
-    fun getStringAR(str: String, ttf: TruetypeFont): Float {
+    /**
+     * @return width per height.
+     */
+    fun getStringAspectRatio(str: String, ttf: TruetypeFont): Float {
 
-        return str.sumOf { getCharAR(it, ttf).toDouble() }.toFloat()
+        return str.sumOf { getCharAspectRatio(it, ttf) }
 
     }
 
-    fun renderStringLine(str: String, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0.0f): Float {
+    @Deprecated("Use Renderer#renderString instead to make calling a function more simply.", ReplaceWith("renderString(str, ttf, position, height, fillColor, strokeColor, false, thickness, spacing)"))
+    fun renderStringSingleLine(str: String, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0.0f): Float {
 
         var offset = Vec2f.ZERO
 
@@ -254,40 +307,50 @@ class Renderer(val windowGetter: ()->Window) {
 
         if(doDrawOverline) {
             glColor3f(1f, 1f, 1f)
-            renderLineStrip(ulongArrayOf(position.plus(0.0f, height).data, position.plus(offset).plus(0f, height).data))
+            renderLineStrip(position.plus(0.0f, height).data, position.plus(offset).plus(0f, height).data)
         }
 
         if(doDrawUnderline) {
             glColor3f(1f, 1f, 1f)
-            renderLineStrip(ulongArrayOf(position.plus(0.0f, 0.0f).data, position.plus(offset).plus(0f, 0f).data))
+            renderLineStrip(position.plus(0.0f, 0.0f).data, position.plus(offset).plus(0f, 0f).data)
         }
 
         return offset.x
 
     }
 
+    @Deprecated("Use Renderer#renderString instead to make calling a function more simply.", ReplaceWith("renderString(str, ttf, position, height, fillColor, strokeColor, false, thickness, spacing)"))
     fun renderStringMultiLine(str: String, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0f) {
 
         str.lines().forEachIndexed { i, line ->
-            renderStringLine(line, ttf, position.minus(0f, (height+spacing)*i), height, fillColor, strokeColor, thickness, spacing)
+            renderStringSingleLine(line, ttf, position.minus(0f, (height+spacing)*i), height, fillColor, strokeColor, thickness, spacing)
         }
 
     }
 
-    fun renderStringLineCentered(str: String, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0f): Float {
+    @Deprecated("Use Renderer#renderString instead to make calling a function more simply.", ReplaceWith("renderString(str, ttf, position, height, fillColor, strokeColor, true, thickness, spacing)"))
+    fun renderStringSingleLineCentered(str: String, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0f): Float {
 
-        val pos = position.minus(height*getStringAR(str, ttf)/2 + spacing*(str.length-1), height/2)
+        val pos = position.minus(height*getStringAspectRatio(str, ttf)/2 + spacing*(str.length-1), height/2)
 
-        return renderStringLine(str, ttf, pos, height, fillColor, strokeColor, thickness, spacing)
+        return renderStringSingleLine(str, ttf, pos, height, fillColor, strokeColor, thickness, spacing)
 
     }
+
+    @Deprecated("Use Renderer#renderString instead to make calling a function more simply.", ReplaceWith("renderString(str, ttf, position, height, fillColor, strokeColor, true, thickness, spacing)"))
     fun renderStringMultiLineCentered(str: String, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0f) {
 
         str.lines().forEachIndexed { i, line ->
-            renderStringLineCentered(line, ttf, position.minus(0f, (height+spacing)*i), height, fillColor, strokeColor, thickness, spacing)
+            renderStringSingleLineCentered(line, ttf, position.minus(0f, (height+spacing)*i), height, fillColor, strokeColor, thickness, spacing)
         }
 
     }
+
+    fun renderString(str: String, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, centered: Boolean=false, thickness: Int=1, spacing: Float = 0f) =
+        if(centered)
+            renderStringMultiLineCentered(str, ttf, position, height, fillColor, strokeColor, thickness, spacing)
+        else
+            renderStringMultiLine(str, ttf, position, height, fillColor, strokeColor, thickness, spacing)
 
     //
     inline fun matrix(block: Matrix.()->Unit) {

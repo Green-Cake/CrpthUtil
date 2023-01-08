@@ -3,6 +3,7 @@ package crpth.util.controller
 import crpth.util.RichWindow
 import crpth.util.type.Direction
 import org.lwjgl.glfw.GLFW
+import java.nio.FloatBuffer
 
 interface Controller {
 
@@ -55,7 +56,7 @@ class ControllerKeyboard(override val richWindow: RichWindow) : Controller {
 
     override val directions = mutableSetOf<Direction>()
 
-    override var isEnabled = false
+    override var isEnabled = true
 
     override fun update() {
 
@@ -84,7 +85,7 @@ class ControllerHat(override val richWindow: RichWindow, val joystickID: Int = G
 
     override val directions = mutableSetOf<Direction>()
 
-    override var isEnabled = false
+    override var isEnabled = true
 
     val isPresent get() = GLFW.glfwJoystickPresent(joystickID)
 
@@ -124,9 +125,11 @@ class ControllerJoystick(override val richWindow: RichWindow, val joystickID: In
 
     override val directions = mutableSetOf<Direction>()
 
-    override var isEnabled = false
+    override var isEnabled = true
 
     val isPresent get() = GLFW.glfwJoystickPresent(joystickID)
+
+    var axes: FloatBuffer? = null
 
     override fun update() {
 
@@ -138,7 +141,9 @@ class ControllerJoystick(override val richWindow: RichWindow, val joystickID: In
         if(!isPresent)
             return
 
-        val axes = GLFW.glfwGetJoystickAxes(joystickID) ?: return
+        axes = GLFW.glfwGetJoystickAxes(joystickID)
+
+        val axes = axes ?: return
 
         if(axes[1] < -0.5f)
             directions += Direction.NORTH

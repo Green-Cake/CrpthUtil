@@ -1,6 +1,5 @@
 package crpth.util.render.font
 
-import crpth.util.ptr.IntPtr
 import crpth.util.render.Texture
 import crpth.util.vec.Vec2i
 import crpth.util.vec.vec
@@ -9,6 +8,7 @@ import org.lwjgl.opengl.GL11
 import org.lwjgl.stb.STBTTFontinfo
 import org.lwjgl.stb.STBTruetype.*
 import org.lwjgl.system.MemoryStack
+import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -38,11 +38,15 @@ class TruetypeFont(path: Path) {
     val descent: Int
 
     init {
-        val _ascent = IntPtr.alloc()
-        val _descent = IntPtr.alloc()
-        stbtt_GetFontVMetrics(fontInfo, _ascent.ptr, _descent.ptr, null)
-        ascent = _ascent.value
-        descent = _descent.value
+
+        MemoryStack.stackPush().use {
+            val pAscent = it.mallocInt(1)
+            val pDescent = it.mallocInt(1)
+            stbtt_GetFontVMetrics(fontInfo, pAscent, pDescent, null)
+            ascent = pAscent.get()
+            descent = pDescent.get()
+        }
+
     }
 
     val baseline = (ascent * scale).toInt()
@@ -68,22 +72,32 @@ class TruetypeFont(path: Path) {
 
     fun loadChar(codepoint: Int): Texture {
 
-        val x0 = IntPtr.alloc()
-        val y0 = IntPtr.alloc()
-        val x1 = IntPtr.alloc()
-        val y1 = IntPtr.alloc()
-        stbtt_GetCodepointBitmapBox(fontInfo, codepoint, scale, scale, x0.ptr, y0.ptr, x1.ptr, y1.ptr)
-        //
-
-        val width = IntPtr.alloc()
-        val height = IntPtr.alloc()
-        val xoff = IntPtr.alloc()
-        val yoff = IntPtr.alloc()
+        val x0: Int
+        val y0: Int
+        val x1: Int
+        val y1: Int
 
         val advanceWidth: Int
         val leftSideBearing: Int
 
+        val width: Int
+        val height: Int
+
+        val image: ByteBuffer?
+
         MemoryStack.stackPush().use {
+
+            val px0 = it.mallocInt(1)
+            val py0 = it.mallocInt(1)
+            val px1 = it.mallocInt(1)
+            val py1 = it.mallocInt(1)
+
+            stbtt_GetCodepointBitmapBox(fontInfo, codepoint, scale, scale, px0, py0, px1, py1)
+
+            x0 = px0.get()
+            y0 = py0.get()
+            x1 = px1.get()
+            y1 = py1.get()
 
             val pAdvanceWidth = it.mallocInt(1)
             val pLeftSideBearing = it.mallocInt(1)
@@ -91,10 +105,18 @@ class TruetypeFont(path: Path) {
             advanceWidth = pAdvanceWidth.get()
             leftSideBearing = pLeftSideBearing.get()
 
+            val pWidth = it.mallocInt(1)
+            val pHeight = it.mallocInt(1)
+
+            image = stbtt_GetCodepointBitmap(fontInfo, scale, scale, codepoint, pWidth, pHeight, null, null)
+
+            width = pWidth.get()
+            height = pHeight.get()
+
         }
 
-        val image = stbtt_GetCodepointBitmap(fontInfo, scale, scale, codepoint, width.ptr, height.ptr, xoff.ptr, yoff.ptr)
-        val imageSize = Vec2i(width.value, height.value)
+
+        val imageSize = Vec2i(width, height)
 
         val tex = Texture.loadGrayscale(image ?: throw Exception("Failed to load char (0x${codepoint.toString(16)}) size: $imageSize"), imageSize)
 
@@ -102,7 +124,7 @@ class TruetypeFont(path: Path) {
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR)
         }
 
-        val charData = CharData(vec(x0.value, HEIGHT_TO_LOAD.toInt() - (baseline + y1.value)), vec(x1.value, HEIGHT_TO_LOAD.toInt() - (baseline + y0.value)), advanceWidth, leftSideBearing)
+        val charData = CharData(vec(x0, HEIGHT_TO_LOAD.toInt() - (baseline + y1)), vec(x1, HEIGHT_TO_LOAD.toInt() - (baseline + y0)), advanceWidth, leftSideBearing)
 
         textures[codepoint] = tex
         charInfoMap[codepoint] = charData

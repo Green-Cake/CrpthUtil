@@ -16,11 +16,9 @@ import org.lwjgl.glfw.GLFWErrorCallback
 import org.lwjgl.opengl.GL
 import org.lwjgl.opengl.GL11
 
-abstract class AppBase(val title: String, val resourceManager: ResourceManager) {
+abstract class AppBase(val title: String, val resourceManager: ResourceManager, val windowSize: Vec2i = Vec2i(1280, 960)) {
 
     open val logger: Logger get() = Logger.Muted
-
-    val windowSize = Vec2i(1280, 960)
 
     var window = Window.NULL_W
         private set
@@ -29,9 +27,7 @@ abstract class AppBase(val title: String, val resourceManager: ResourceManager) 
         RichWindow(window, this::onClicked)
     }
 
-    val renderer = Renderer(resourceManager) {
-        window
-    }
+    val renderer = Renderer { window }
 
     val soundManager = SoundManager()
 
@@ -59,8 +55,8 @@ abstract class AppBase(val title: String, val resourceManager: ResourceManager) 
             throw IllegalStateException("Failed to initialize GLFW...")
         }
 
-        val monitor = GLFW.glfwGetPrimaryMonitor()
-        val mode = GLFW.glfwGetVideoMode(monitor)
+//        val monitor = GLFW.glfwGetPrimaryMonitor()
+//        val mode = GLFW.glfwGetVideoMode(monitor)
 
         GLFW.glfwDefaultWindowHints()
         GLFW.glfwWindowHint(GLFW.GLFW_VISIBLE, 1)
@@ -83,6 +79,8 @@ abstract class AppBase(val title: String, val resourceManager: ResourceManager) 
         GL11.glEnable(GL11.GL_BLEND)
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA)
         GL11.glCullFace(GL11.GL_BACK)
+
+        onInit()
 
         window.show()
 
@@ -129,6 +127,8 @@ abstract class AppBase(val title: String, val resourceManager: ResourceManager) 
         onRender(renderer)
 
     }
+
+    abstract fun onInit()
 
     abstract fun onUpdate()
 

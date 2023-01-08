@@ -3,7 +3,6 @@ package crpth.util.vec
 import java.io.DataOutputStream
 import kotlin.math.absoluteValue
 
-
 class Vec2d(override val x: Double, override val y: Double) : IVec2n<Double, Vec2d> {
 
     val abs get() = Vec2d(x.absoluteValue, y.absoluteValue)
