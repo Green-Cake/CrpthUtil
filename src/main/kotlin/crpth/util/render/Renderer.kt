@@ -93,7 +93,7 @@ class Renderer(val windowGetter: ()->Window) {
     }
 
     fun clearScreen(clearColor: Vec4f = Vec4f.BLACK) {
-        glClearColor(clearColor.d, clearColor.c, clearColor.c, clearColor.d)
+        glClearColor(clearColor.a, clearColor.b, clearColor.c, clearColor.d)
         glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
     }
 
