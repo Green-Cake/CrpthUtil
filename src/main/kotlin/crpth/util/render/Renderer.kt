@@ -8,33 +8,20 @@ import org.lwjgl.opengl.GL11.*
 import kotlin.math.max
 
 @OptIn(ExperimentalUnsignedTypes::class)
-class Renderer(val windowGetter: ()->Window) {
+@JvmInline
+value class Renderer(val window: Window) {
 
-    object Constants {
+    companion object {
 
         inline val SIZE_FULL get() = vec(2.0f, 2.0f)
 
     }
 
-    companion object {
+    @Suppress("NOTHING_TO_INLINE")
+    inline fun vertex2f(vec: Vec2f) = glVertex2f(vec.x, vec.y)
 
-        @Suppress("NOTHING_TO_INLINE")
-        inline fun vertex2f(vec: Vec2f) = glVertex2f(vec.x, vec.y)
-
-        @Suppress("NOTHING_TO_INLINE")
-        inline fun glColor4f(vec4f: Vec4f) = glColor4f(vec4f.a, vec4f.b, vec4f.c, vec4f.d)
-
-    }
-
-    /**
-     * If true, when rendering any text, also draws overline automatically.
-     */
-    var doDrawOverline = false
-
-    /**
-     * If true, when rendering any text, also draws underline automatically.
-     */
-    var doDrawUnderline = false
+    @Suppress("NOTHING_TO_INLINE")
+    inline fun glColor4f(vec4f: Vec4f) = glColor4f(vec4f.a, vec4f.b, vec4f.c, vec4f.d)
 
     /**
      * Invokes glColor4f with each byte value divided by 255, so 0 to 255 in a byte will be mapped into 0f ~ 1f in float.
@@ -50,8 +37,8 @@ class Renderer(val windowGetter: ()->Window) {
      * @return a calculated value you can use for [glVertex2f] or [vertex2f]
      */
     fun pixels(p: Int): Vec2f {
-        val wsize = windowGetter().getWindowSize()
-        return Constants.SIZE_FULL / wsize.toVec2f() * p.toFloat()
+        val wsize = window.getWindowSize()
+        return SIZE_FULL / wsize.toVec2f() * p.toFloat()
     }
 
     /**
@@ -60,8 +47,8 @@ class Renderer(val windowGetter: ()->Window) {
      * @return a calculated value you can use for [glVertex2f] or [vertex2f]
      */
     fun pixels(p: Vec2i): Vec2f {
-        val wsize = windowGetter().getWindowSize()
-        return Constants.SIZE_FULL / wsize.toVec2f() * p.toVec2f()
+        val wsize = window.getWindowSize()
+        return SIZE_FULL / wsize.toVec2f() * p.toVec2f()
     }
 
     /**
@@ -285,7 +272,12 @@ class Renderer(val windowGetter: ()->Window) {
     }
 
     @Deprecated("Use Renderer#renderString instead to make calling a function more simply.", ReplaceWith("renderString(str, ttf, position, height, fillColor, strokeColor, false, thickness, spacing)"))
-    fun renderStringSingleLine(str: String, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0.0f): Float {
+    fun renderStringSingleLine(
+        str: String, ttf: TruetypeFont, position: Vec2f, height: Float,
+        fillColor: Vec4f, strokeColor: Vec4f? = null,
+        thickness: Int=1, spacing: Float = 0.0f,
+        drawOverline: Boolean=false, drawUnderline: Boolean=false, lineColor: Vec4f=Vec4f.WHITE
+    ): Float {
 
         var offset = Vec2f.ZERO
 
@@ -301,13 +293,13 @@ class Renderer(val windowGetter: ()->Window) {
 
         }
 
-        if(doDrawOverline) {
-            glColor3f(1f, 1f, 1f)
+        if(drawOverline) {
+            glColor4f(lineColor)
             renderLineStrip(position.plus(0.0f, height).data, position.plus(offset).plus(0f, height).data)
         }
 
-        if(doDrawUnderline) {
-            glColor3f(1f, 1f, 1f)
+        if(drawUnderline) {
+            glColor4f(lineColor)
             renderLineStrip(position.plus(0.0f, 0.0f).data, position.plus(offset).plus(0f, 0f).data)
         }
 

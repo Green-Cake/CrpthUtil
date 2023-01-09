@@ -26,7 +26,7 @@ abstract class AppBase(val domain: String, val title: String, val windowSize: Ve
         RichWindow(window, this::onClicked)
     }
 
-    val renderer = Renderer { window }
+    val renderer get() = Renderer(window)
 
     val resourceManager = ResourceManager(domain)
 

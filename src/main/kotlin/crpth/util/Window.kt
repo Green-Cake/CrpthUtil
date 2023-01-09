@@ -1,6 +1,7 @@
 package crpth.util
 
 import crpth.util.annotation.RequireGLFWInit
+import crpth.util.render.Renderer
 import crpth.util.vec.Vec2i
 import org.lwjgl.glfw.Callbacks
 import org.lwjgl.glfw.GLFW
@@ -50,6 +51,8 @@ value class Window(val id: Long) {
      * @see setFullscreen
      */
     val isFullscreen get() = GLFW.glfwGetWindowMonitor(id) != 0L
+
+    val renderer get() = Renderer(this)
 
     fun setWindowSizeLimits(min: Vec2i, max: Vec2i) = GLFW.glfwSetWindowSizeLimits(id, min.x, min.y, max.x, max.y)
 
