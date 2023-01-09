@@ -1,6 +1,5 @@
 package crpth.util.render
 
-import crpth.util.ResourceManager
 import crpth.util.Window
 import crpth.util.math.sumOf
 import crpth.util.render.font.TruetypeFont
@@ -26,9 +25,6 @@ class Renderer(val windowGetter: ()->Window) {
         inline fun glColor4f(vec4f: Vec4f) = glColor4f(vec4f.a, vec4f.b, vec4f.c, vec4f.d)
 
     }
-
-    @Deprecated("This constructor is only for version-compatibility.", ReplaceWith("Renderer(windowGetter)"))
-    constructor(resourceManager: ResourceManager, windowGetter: ()->Window) : this(windowGetter)
 
     /**
      * If true, when rendering any text, also draws overline automatically.

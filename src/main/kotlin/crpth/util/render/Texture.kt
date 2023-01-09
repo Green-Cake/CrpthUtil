@@ -1,6 +1,6 @@
 package crpth.util.render
 
-import crpth.util.ResourceManager
+import crpth.util.ResourceAccessor
 import crpth.util.vec.Vec2i
 import org.lwjgl.opengl.GL11.*
 import java.awt.image.BufferedImage
@@ -12,14 +12,17 @@ value class Texture(override val id: Int) : ITexture {
 
     companion object {
 
-        fun load(rm: ResourceManager, path: String): Texture {
+        @Deprecated("Use ResourceManager instead!", ReplaceWith("ResourceManager.STATIC.loadTexture(path)"))
+        internal fun load(domain: String, path: String): Texture {
 
-            val (pixels, size) = rm.loadTextureImageBufAndSize(ClassLoader.getSystemResourceAsStream("assets/${rm.name}/textures/$path") ?: throw NoSuchFileException(File("assets/${rm.name}/textures/"+path)))
+            val (pixels, size) = ResourceAccessor.loadTextureImageBufAndSize(ClassLoader.getSystemResourceAsStream("assets/$domain/textures/$path") ?: throw NoSuchFileException(File(
+                "assets/$domain/textures/$path"
+            )))
             return load(pixels, size)
 
         }
 
-        fun load(pixels: ByteBuffer, size: Vec2i): Texture {
+        internal fun load(pixels: ByteBuffer, size: Vec2i): Texture {
             val id = glGenTextures()
             glBindTexture(GL_TEXTURE_2D, id)
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels)
@@ -29,7 +32,7 @@ value class Texture(override val id: Int) : ITexture {
             return Texture(id)
         }
 
-        fun loadGrayscale(pixels: ByteBuffer, size: Vec2i): Texture {
+        internal fun loadGrayscale(pixels: ByteBuffer, size: Vec2i): Texture {
             val id = glGenTextures()
             glPixelStorei(GL_UNPACK_ALIGNMENT,1)
             glBindTexture(GL_TEXTURE_2D, id)
@@ -40,9 +43,9 @@ value class Texture(override val id: Int) : ITexture {
             return Texture(id)
         }
 
-        fun load(rm: ResourceManager, img: BufferedImage): Texture {
+        internal fun load(img: BufferedImage): Texture {
 
-            val buffer = rm.loadTextureImageBufAndSize(img).first
+            val (buffer, _) = ResourceAccessor.loadTextureImageBufAndSize(img)
 
             val id = glGenTextures()
             glBindTexture(GL_TEXTURE_2D, id)
@@ -54,8 +57,9 @@ value class Texture(override val id: Int) : ITexture {
             return Texture(id)
         }
 
-        fun createLazyInit(rm: ResourceManager, path: String): Lazy<Texture> = lazy {
-            load(rm, path)
+        @Deprecated("Use ResourceManager instead!", ReplaceWith("ResourceManager.STATIC.loadTextureLazy(path)"))
+        internal fun createLazyInit(domain: String, path: String): Lazy<Texture> = lazy {
+            load(domain, path)
         }
 
     }

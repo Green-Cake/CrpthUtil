@@ -1,13 +1,13 @@
 package crpth.util.render
 
-import crpth.util.ResourceManager
+import crpth.util.ResourceAccessor
 import crpth.util.vec.Vec2i
 import org.lwjgl.opengl.GL11
 
-class TileSet(rm: ResourceManager, path: String, val sizePerTile: Vec2i) {
+class TileSet(rm: ResourceAccessor, path: String, val sizePerTile: Vec2i) {
 
     companion object {
-        fun createLazyInit(rm: ResourceManager, path: String, sizePerTile: Vec2i): Lazy<TileSet> = lazy {
+        fun createLazyInit(rm: ResourceAccessor, path: String, sizePerTile: Vec2i): Lazy<TileSet> = lazy {
             TileSet(rm, path, sizePerTile)
         }
     }

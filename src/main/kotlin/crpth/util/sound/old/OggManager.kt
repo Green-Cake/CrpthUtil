@@ -1,6 +1,6 @@
-package crpth.util.sound
+package crpth.util.sound.old
 
-import crpth.util.ResourceManager
+import crpth.util.ResourceAccessor
 import org.lwjgl.BufferUtils
 import org.lwjgl.openal.AL
 import org.lwjgl.openal.AL10
@@ -22,7 +22,8 @@ import kotlin.concurrent.thread
  *
  * this [OggManager] actually deals with OpenAL so this can do them.
  */
-class OggManager {
+@Deprecated("Use NewSoundManager instead.", ReplaceWith("NewSoundManager"))
+class OggManager(val domain: String) {
 
     var canPlaySound: Boolean = false
 
@@ -32,7 +33,7 @@ class OggManager {
     var context: Long = 0L
         private set
 
-    val sounds = mutableMapOf<String, Sound>()
+    val sounds = mutableMapOf<Int, Sound>()
 
     fun init() {
 
@@ -48,11 +49,11 @@ class OggManager {
 
     }
 
-    operator fun contains(name: String) = name in sounds
+    operator fun contains(id: Int) = id in sounds
 
-    fun loadOgg(rm: ResourceManager, name: String, path: String, doLoop: Boolean) = loadOgg(name, rm.loadSoundFile(path), doLoop)
+    fun loadOgg(id: Int, path: String, doLoop: Boolean) = loadOgg(id, ResourceAccessor.loadSoundFile(domain, path), doLoop)
 
-    fun loadOgg(name: String, data: ByteBuffer, doLoop: Boolean) {
+    fun loadOgg(id: Int, data: ByteBuffer, doLoop: Boolean) {
 
         val buffer = AL10.alGenBuffers()
         val source = AL10.alGenSources()
@@ -79,32 +80,32 @@ class OggManager {
         AL10.alSourcei(source, AL10.AL_BUFFER, buffer)
         AL10.alSourcei(source, AL10.AL_LOOPING, if(doLoop) AL10.AL_TRUE else AL10.AL_FALSE)
 
-        sounds[name] = Sound(buffer, source)
+        sounds[id] = Sound(buffer, source)
 
         info.close()
 
     }
 
-    fun setVolume(name: String, volume: Float) {
-        if(name !in sounds)
+    fun setVolume(id: Int, volume: Float) {
+        if(id !in sounds)
             return
 
-        AL10.alSourcef(sounds[name]!!.source, AL10.AL_GAIN, volume)
+        AL10.alSourcef(sounds[id]!!.source, AL10.AL_GAIN, volume)
     }
 
-    fun play(name: String, volume: Float): Thread? {
-        setVolume(name, volume)
-        return play(name)
+    fun play(id: Int, volume: Float): Thread? {
+        setVolume(id, volume)
+        return play(id)
     }
 
-    fun play(name: String): Thread? {
+    fun play(id: Int): Thread? {
 
-        if(name !in sounds)
+        if(id !in sounds)
             return null
 
         val t = thread {
 
-            val source = sounds[name]!!.source
+            val source = sounds[id]!!.source
 
             AL10.alSourcePlay(source)
             var state: Int = AL10.alGetSourcei(source, AL_SOURCE_STATE)
@@ -121,27 +122,24 @@ class OggManager {
 
     }
 
-    fun stop(name: String) {
+    fun stop(id: Int) {
 
-        if(name !in sounds)
+        if(id !in sounds)
             return
 
-        AL10.alSourceStop(sounds[name]!!.source)
+        AL10.alSourceStop(sounds[id]!!.source)
 
     }
 
-    fun playRandom(vararg names: String) {
+    fun playRandom(vararg ids: Int) {
 
-        play(names.random())
+        play(ids.random())
 
     }
 
-    fun free(name: String) {
+    fun free(id: Int) {
 
-        if(name !in sounds)
-            return
-
-        val (buffer,source) = sounds[name]!!
+        val (buffer,source) = sounds[id] ?: return
         AL10.alDeleteSources(source)
         AL10.alDeleteBuffers(buffer)
 

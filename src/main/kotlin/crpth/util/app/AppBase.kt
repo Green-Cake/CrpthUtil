@@ -8,7 +8,6 @@ import crpth.util.logging.Logger
 import crpth.util.mouse.MouseAction
 import crpth.util.mouse.MouseButton
 import crpth.util.render.Renderer
-import crpth.util.sound.SoundManager
 import crpth.util.vec.Vec2i
 import org.lwjgl.Version
 import org.lwjgl.glfw.GLFW
@@ -16,7 +15,7 @@ import org.lwjgl.glfw.GLFWErrorCallback
 import org.lwjgl.opengl.GL
 import org.lwjgl.opengl.GL11
 
-abstract class AppBase(val title: String, val resourceManager: ResourceManager, val windowSize: Vec2i = Vec2i(1280, 960)) {
+abstract class AppBase(val domain: String, val title: String, val windowSize: Vec2i = Vec2i(1280, 960)) {
 
     open val logger: Logger get() = Logger.Muted
 
@@ -29,7 +28,7 @@ abstract class AppBase(val title: String, val resourceManager: ResourceManager, 
 
     val renderer = Renderer { window }
 
-    val soundManager = SoundManager()
+    val resourceManager = ResourceManager(domain)
 
     val controller by lazy { ControllerManager(richWindow) }
 
@@ -46,8 +45,6 @@ abstract class AppBase(val title: String, val resourceManager: ResourceManager, 
     private fun init() {
 
         logger.info("LWJGL Version: ${Version.getVersion()}")
-
-        soundManager.init()
 
         GLFWErrorCallback.createPrint(System.err).set()
 

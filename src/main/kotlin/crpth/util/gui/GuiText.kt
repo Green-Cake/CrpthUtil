@@ -14,7 +14,7 @@ class GuiText(z: Int, pos: Vec2f, val height: Float, val text: String, val ttf: 
 
     override fun render(renderer: Renderer) {
 
-        renderer.renderStringSingleLineCentered(text, ttf, pos, height, colorFill, colorStroke, spacing = spacing)
+        renderer.renderString(text, ttf, pos, height, colorFill, colorStroke, true, spacing = spacing)
 
     }
 
