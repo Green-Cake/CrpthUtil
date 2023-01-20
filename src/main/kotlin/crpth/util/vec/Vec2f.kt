@@ -36,13 +36,13 @@ value class Vec2f(val data: ULong) : IVec2n<Float, Vec2f> {
 
     operator fun div(other: Vec2f) = Vec2f(x / other.x, y / other.y)
 
-    fun plus(x: Float, y: Float) = Vec2f(this.x + x, this.y + y)
+    fun plus(x: Float=0f, y: Float=0f) = Vec2f(this.x + x, this.y + y)
 
-    fun minus(x: Float, y: Float) = Vec2f(this.x - x, this.y - y)
+    fun minus(x: Float=0f, y: Float=0f) = Vec2f(this.x - x, this.y - y)
 
-    fun times(x: Float, y: Float) = Vec2f(this.x * x, this.y * y)
+    fun times(x: Float=1f, y: Float=1f) = Vec2f(this.x * x, this.y * y)
 
-    fun div(x: Float, y: Float) = Vec2f(this.x / x, this.y / y)
+    fun div(x: Float=1f, y: Float=1f) = Vec2f(this.x / x, this.y / y)
 
     operator fun times(other: Float) = Vec2f(x * other, y * other)
 

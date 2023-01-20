@@ -1,9 +1,8 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.7.20"
+    kotlin("jvm") version "1.8.0"
     id("com.github.johnrengelman.shadow") version "7.1.2"
-    id("org.openjfx.javafxplugin") version "0.0.8"
 }
 
 group = "crpth"
@@ -26,11 +25,6 @@ val lwjglNatives = Pair(
 
 repositories {
     mavenCentral()
-}
-
-javafx {
-    version = "11.0.2"
-    modules = listOf("javafx.media", "javafx.web")
 }
 
 //tasks.withType<KotlinCompile> {
@@ -71,4 +65,10 @@ tasks.test {
 
 tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "1.8"
+}
+
+val compileKotlin: KotlinCompile by tasks
+
+compileKotlin.kotlinOptions {
+    languageVersion = "1.8"
 }

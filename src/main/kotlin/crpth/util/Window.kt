@@ -1,5 +1,6 @@
 package crpth.util
 
+import crpth.util.Window.Companion.NULL_W
 import crpth.util.annotation.RequireGLFWInit
 import crpth.util.render.Renderer
 import crpth.util.vec.Vec2i

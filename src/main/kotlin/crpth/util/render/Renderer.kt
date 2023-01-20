@@ -1,11 +1,14 @@
 package crpth.util.render
 
 import crpth.util.Window
-import crpth.util.math.sumOf
-import crpth.util.render.font.TruetypeFont
+import crpth.util.render.font.*
 import crpth.util.vec.*
 import org.lwjgl.opengl.GL11.*
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 import kotlin.math.max
+import kotlin.math.min
 
 @OptIn(ExperimentalUnsignedTypes::class)
 @JvmInline
@@ -27,7 +30,7 @@ value class Renderer(val window: Window) {
      * Invokes glColor4f with each byte value divided by 255, so 0 to 255 in a byte will be mapped into 0f ~ 1f in float.
      * @param color byte values in order of red, green, blue and alpha.
      */
-    fun color4b(color: Vec4b) {
+    fun glColor4b(color: Vec4b) {
         glColor4f(color.r.resizeToInt()/255f, color.g.resizeToInt()/255f,  color.b.resizeToInt()/255f, color.a.resizeToInt()/255f)
     }
 
@@ -62,7 +65,11 @@ value class Renderer(val window: Window) {
      * @param block call vertex or something to draw.
      * @see org.lwjgl.opengl.GL11
      */
+    @OptIn(ExperimentalContracts::class)
     inline fun draw(mode: Int, block: ()->Unit) {
+        contract {
+            callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+        }
         glBegin(mode)
         block()
         glEnd()
@@ -91,7 +98,7 @@ value class Renderer(val window: Window) {
 
     }
 
-    fun renderTexture(texture: ITexture, position: Vec2f, size: Vec2f, srcStart: Vec2f = Vec2f.ZERO, srcEnd: Vec2f = Vec2f.ONE, initColor: Vec4f?= Vec4f.WHITE) {
+    fun renderTexture(texture: Texture, position: Vec2f, size: Vec2f, srcStart: Vec2f = Vec2f.ZERO, srcEnd: Vec2f = Vec2f.ONE, initColor: Vec4f?= Vec4f.WHITE) {
 
         if(initColor != null)
             glColor4f(initColor.a, initColor.b, initColor.c, initColor.d)
@@ -119,7 +126,7 @@ value class Renderer(val window: Window) {
     }
 
     @Deprecated("Use Vec2f instead!", ReplaceWith("renderTexture(texture, position, vec(width, height), srcStart, srcEnd)"))
-    fun renderTexture(texture: ITexture, position: Vec2f, height: Float, width: Float, srcStart: Vec2f = Vec2f.ZERO, srcEnd: Vec2f = Vec2f.ONE) {
+    fun renderTexture(texture: Texture, position: Vec2f, height: Float, width: Float, srcStart: Vec2f = Vec2f.ZERO, srcEnd: Vec2f = Vec2f.ONE) {
 
         texture.bind()
 
@@ -143,36 +150,38 @@ value class Renderer(val window: Window) {
 
     }
 
-    fun renderTextureCentered(texture: ITexture, position: Vec2f, size: Vec2f, srcStart: Vec2f = Vec2f.ZERO, srcEnd: Vec2f = Vec2f.ONE)
+    fun renderTextureCentered(texture: Texture, position: Vec2f, size: Vec2f, srcStart: Vec2f = Vec2f.ZERO, srcEnd: Vec2f = Vec2f.ONE)
     = renderTexture(texture, position - size / 2f, size, srcStart, srcEnd)
 
     /**
      * AA means Auto Aspect
      * @return width value calculated and used for rendering.
      */
-    fun renderTextureAA(texture: ITexture, position: Vec2f, height: Float, srcStart: Vec2f = Vec2f.ZERO, srcEnd: Vec2f = Vec2f.ONE): Float {
+    fun renderTextureAA(texture: Texture, position: Vec2f, height: Float, srcStart: Vec2f = Vec2f.ZERO, srcEnd: Vec2f = Vec2f.ONE): Float {
 
-        texture.bind()
+        val aspect: Float
 
-        val aspect = texture.getAspectRatio()
+        texture.use {
 
-        draw(GL_QUADS) {
+            aspect = texture.getAspectRatio()
 
-            glTexCoord2f(srcStart.x, srcStart.y)
-            glVertex2f(position.x, position.y + height)
+            draw(GL_QUADS) {
 
-            glTexCoord2f(srcStart.x, srcEnd.y)
-            glVertex2f(position.x, position.y)
+                glTexCoord2f(srcStart.x, srcStart.y)
+                glVertex2f(position.x, position.y + height)
 
-            glTexCoord2f(srcEnd.x, srcEnd.y)
-            glVertex2f(position.x + height * aspect, position.y)
+                glTexCoord2f(srcStart.x, srcEnd.y)
+                glVertex2f(position.x, position.y)
 
-            glTexCoord2f(srcEnd.x, srcStart.y)
-            glVertex2f(position.x + height * aspect, position.y + height)
+                glTexCoord2f(srcEnd.x, srcEnd.y)
+                glVertex2f(position.x + height * aspect, position.y)
+
+                glTexCoord2f(srcEnd.x, srcStart.y)
+                glVertex2f(position.x + height * aspect, position.y + height)
+
+            }
 
         }
-
-        texture.debind()
 
         return height * aspect
 
@@ -186,7 +195,7 @@ value class Renderer(val window: Window) {
         val tex = try {
             ttf.getOrLoad(char)
         } catch (e: Throwable) {
-            return height/2
+            return height*(ttf.getAspectRatioForBlank(char) ?: 0f)
         }
 
         tex.bind()
@@ -215,7 +224,7 @@ value class Renderer(val window: Window) {
         val tex = try {
             ttf.getOrLoad(char)
         } catch (e: Throwable) {
-            return height/2
+            return height*(ttf.getAspectRatioForBlank(char) ?: 0f)
         }
 
         tex.bind()
@@ -225,6 +234,8 @@ value class Renderer(val window: Window) {
         val info = ttf.getCharInfo(char)
 
         val offset = (info.pos0.toVec2f() / TruetypeFont.HEIGHT_TO_LOAD) * height
+
+        //
 
         val realHeight = height * h / TruetypeFont.HEIGHT_TO_LOAD
 
@@ -253,53 +264,32 @@ value class Renderer(val window: Window) {
 
     }
 
-    /**
-     * @return width per height.
-     */
-    fun getCharAspectRatio(char: Char, ttf: TruetypeFont): Float {
-
-        return ttf.getAdvanceWidth(char) / 1000f
-
-    }
-
-    /**
-     * @return width per height.
-     */
-    fun getStringAspectRatio(str: String, ttf: TruetypeFont): Float {
-
-        return str.sumOf { getCharAspectRatio(it, ttf) }
-
-    }
-
     @Deprecated("Use Renderer#renderString instead to make calling a function more simply.", ReplaceWith("renderString(str, ttf, position, height, fillColor, strokeColor, false, thickness, spacing)"))
     fun renderStringSingleLine(
-        str: String, ttf: TruetypeFont, position: Vec2f, height: Float,
-        fillColor: Vec4f, strokeColor: Vec4f? = null,
-        thickness: Int=1, spacing: Float = 0.0f,
-        drawOverline: Boolean=false, drawUnderline: Boolean=false, lineColor: Vec4f=Vec4f.WHITE
+        str: String, position: Vec2f, height: Float, config: FontConfig
     ): Float {
 
         var offset = Vec2f.ZERO
 
         str.forEach {
 
-            val xoffset = if(strokeColor != null) {
-                renderCharWithBorder(it, ttf, position.plus(offset), height, fillColor, strokeColor, thickness)
+            val xoffset = if(config.strokeColor != null) {
+                renderCharWithBorder(it, config.ttf, position.plus(offset), height, config.fillColor, config.strokeColor, config.thickness)
             } else {
-                renderChar(it, ttf, position.plus(offset), height, fillColor)
+                renderChar(it, config.ttf, position.plus(offset), height, config.fillColor)
             }
 
-            offset = offset.plus(xoffset + spacing, 0f)
+            offset = offset.plus(xoffset + config.spacing, 0f)
 
         }
 
-        if(drawOverline) {
-            glColor4f(lineColor)
+        if(config.drawOverline) {
+            glColor4f(config.lineColor)
             renderLineStrip(position.plus(0.0f, height).data, position.plus(offset).plus(0f, height).data)
         }
 
-        if(drawUnderline) {
-            glColor4f(lineColor)
+        if(config.drawUnderline) {
+            glColor4f(config.lineColor)
             renderLineStrip(position.plus(0.0f, 0.0f).data, position.plus(offset).plus(0f, 0f).data)
         }
 
@@ -308,40 +298,134 @@ value class Renderer(val window: Window) {
     }
 
     @Deprecated("Use Renderer#renderString instead to make calling a function more simply.", ReplaceWith("renderString(str, ttf, position, height, fillColor, strokeColor, false, thickness, spacing)"))
-    fun renderStringMultiLine(str: String, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0f) {
+    fun renderStringMultiLine(str: String, position: Vec2f, height: Float, config: FontConfig, firstX: Float=0f): Vec2f {
+
+        var ret = position
 
         str.lines().forEachIndexed { i, line ->
-            renderStringSingleLine(line, ttf, position.minus(0f, (height+spacing)*i), height, fillColor, strokeColor, thickness, spacing)
+            ret = position.minus(0f, (height+config.spacing)*i)
+
+            if(i == 0)
+                ret = ret.plus(x = firstX)
+
+            val w = renderStringSingleLine(line, ret, height, config)
+            ret = ret.plus(x = w)
         }
+
+        return ret
 
     }
 
     @Deprecated("Use Renderer#renderString instead to make calling a function more simply.", ReplaceWith("renderString(str, ttf, position, height, fillColor, strokeColor, true, thickness, spacing)"))
-    fun renderStringSingleLineCentered(str: String, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0f): Float {
+    fun renderStringSingleLineCentered(str: String, position: Vec2f, height: Float, config: FontConfig): Float {
 
-        val pos = position.minus(height*getStringAspectRatio(str, ttf)/2 + spacing*(str.length-1), height/2)
+        val pos = position.minus(height*config.getStringAspectRatio(str)/2 + config.spacing*(str.length-1), height/2)
 
-        return renderStringSingleLine(str, ttf, pos, height, fillColor, strokeColor, thickness, spacing)
+        return renderStringSingleLine(str, pos, height, config)
 
     }
 
     @Deprecated("Use Renderer#renderString instead to make calling a function more simply.", ReplaceWith("renderString(str, ttf, position, height, fillColor, strokeColor, true, thickness, spacing)"))
-    fun renderStringMultiLineCentered(str: String, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, thickness: Int=1, spacing: Float = 0f) {
+    fun renderStringMultiLineCentered(str: String, position: Vec2f, height: Float, config: FontConfig) {
 
         str.lines().forEachIndexed { i, line ->
-            renderStringSingleLineCentered(line, ttf, position.minus(0f, (height+spacing)*i), height, fillColor, strokeColor, thickness, spacing)
+            renderStringSingleLineCentered(line, position.minus(0f, (height+config.lineSpacing)*i), height, config)
         }
 
     }
 
-    fun renderString(str: String, ttf: TruetypeFont, position: Vec2f, height: Float, fillColor: Vec4f, strokeColor: Vec4f? = null, centered: Boolean=false, thickness: Int=1, spacing: Float = 0f) =
-        if(centered)
-            renderStringMultiLineCentered(str, ttf, position, height, fillColor, strokeColor, thickness, spacing)
+    /**
+     * Renders a specified text of [str].
+     * @param str Text string to render. Able to contain line separator.
+     * @param position A position in the screen. May be modified if [FontConfig.isCentered] is true.
+     * @param height Height of text to render. 1.0f corresponds to a half height of the screen provided no matrix is set.
+     * @param config Some parameters in detail.
+     * @see FontConfig
+     */
+    fun renderString(str: String, position: Vec2f, height: Float, config: FontConfig) =
+        if(config.isCentered)
+            renderStringMultiLineCentered(str, position, height, config)
         else
-            renderStringMultiLine(str, ttf, position, height, fillColor, strokeColor, thickness, spacing)
+            renderStringMultiLine(str, position, height, config)
+
+    @OptIn(ExperimentalStdlibApi::class)
+    fun renderString(width: Float, lastUnit: TextUnit, charCount: Int = -1) {
+
+        val stack = lastUnit.getStack()
+
+        val first = stack.peek() as TextUnitHead
+
+        val firstX = first.position.x
+
+        val maxX = firstX + width
+
+        var position = first.position
+
+        var config: FontConfig
+
+        var count = if(charCount >= 0) charCount else Int.MAX_VALUE
+
+        while(true) {
+
+            val current = try {
+                stack.pop() as TextUnit
+            } catch (e: Throwable) {
+                return
+            }
+
+            config = current.config
+
+            if(current is Br) {
+
+                position = position.minus(y = current.height + config.lineSpacing).copy(x = firstX)
+
+                continue
+            }
+
+            var w = 0f
+            var appended = 1
+
+            val builder = StringBuilder(current.str)
+
+            var virtualX = position.x
+
+            for(i in 0 ..< min(count, current.str.lastIndex)) {
+
+                w += current.height * config.getCharAspectRatio(current.str[i])
+                if(virtualX + w > maxX) {
+                    builder.insert(i+appended++, '\n')
+                    w = 0f
+                    virtualX = firstX
+                }
+
+            }
+
+            val lines = builder.lines()
+
+            lines.forEachIndexed {  index, s ->
+
+                position = renderStringMultiLine(s.take(count), position.copy(x = first.position.x), current.height, config, firstX = position.x - firstX)
+                count -= s.length
+
+                if(count <= 0)
+                    return
+
+                if(index != lines.lastIndex) {
+                    position = position.minus(y = current.height + config.lineSpacing).copy(x = firstX)
+                }
+
+            }
+
+        }
+
+    }
 
     //
+    @OptIn(ExperimentalContracts::class)
     inline fun matrix(block: Matrix.()->Unit) {
+        contract {
+            callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+        }
         glPushMatrix()
         block(Matrix)
         glPopMatrix()

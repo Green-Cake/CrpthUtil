@@ -9,7 +9,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import javax.imageio.ImageIO
-import javax.sound.sampled.AudioSystem
 
 object ResourceAccessor {
 
@@ -100,11 +99,10 @@ object ResourceAccessor {
         return buffer.slice()
     }
 
-    @Deprecated("UNUSED")
     fun loadSoundFile(domain: String, name: String) = loadSoundFile(Paths.get(ClassLoader.getSystemResource("assets/$domain/sounds/$name").toURI()))
 
     fun loadScriptSrc(domain: String, path: String) = String(ClassLoader.getSystemResourceAsStream("assets/$domain/script/$path.kts")!!.readBytes())
 
-    fun getAudioInputStream(domain: String, path: String) = AudioSystem.getAudioInputStream(ClassLoader.getSystemResourceAsStream("assets/$domain/sounds/$path"))
+    fun getAudioInputStream(domain: String, path: String) = ClassLoader.getSystemResourceAsStream("assets/$domain/sounds/$path")
 
 }

@@ -1,9 +1,9 @@
 package crpth.util.vec
 
-import java.awt.Color
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+import java.awt.Color as AwtColor
 
 data class Vec4f(val a: Float, val b: Float, val c: Float, val d: Float=1.0f) {
 
@@ -17,7 +17,7 @@ data class Vec4f(val a: Float, val b: Float, val c: Float, val d: Float=1.0f) {
 
         fun grayscale(f: Float) = Vec4f(f, f, f)
 
-        fun from(awtColor: Color) = Vec4f(awtColor.red / 255f, awtColor.green / 255f, awtColor.blue / 255f, awtColor.alpha / 255f)
+        fun from(awtColor: AwtColor) = Vec4f(awtColor.red / 255f, awtColor.green / 255f, awtColor.blue / 255f, awtColor.alpha / 255f)
 
     }
 

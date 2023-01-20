@@ -8,11 +8,12 @@ import org.lwjgl.opengl.GL11
 import org.lwjgl.stb.STBTTFontinfo
 import org.lwjgl.stb.STBTruetype.*
 import org.lwjgl.system.MemoryStack
+import java.io.Closeable
 import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 
-class TruetypeFont(path: Path) {
+class TruetypeFont(path: Path) : Closeable {
 
     companion object {
 
@@ -24,9 +25,11 @@ class TruetypeFont(path: Path) {
 
     private val charInfoMap = mutableMapOf<Int, CharData>()
 
-    private val ttf = Files.readAllBytes(path)
+    private val bin = Files.readAllBytes(path)
 
-    private val ttfBuf = BufferUtils.createByteBuffer(ttf.size).put(ttf).flip()
+    private val ttfBuf = BufferUtils.createByteBuffer(bin.size).put(bin).flip()
+
+    private val blanks = mutableMapOf<Char, Float>()
 
     val fontInfo = STBTTFontinfo.create().apply {
         stbtt_InitFont(this, ttfBuf)
@@ -47,9 +50,17 @@ class TruetypeFont(path: Path) {
             descent = pDescent.get()
         }
 
+        blanks[' '] = 0.5f
+        blanks['　'] = 1f
+
     }
 
     val baseline = (ascent * scale).toInt()
+
+    /**
+     * @return An aspect ratio or null if [char] is not registered.
+     */
+    fun getAspectRatioForBlank(char: Char): Float? = blanks[char]
 
     fun getTexture(charInUtf8: Char) = textures[charInUtf8.code]
 
@@ -133,8 +144,17 @@ class TruetypeFont(path: Path) {
 
     }
 
-    data class CharData(val pos0: Vec2i, val pos1: Vec2i, val advanceWidth: Int, val leftSideBearing: Int) {
+    override fun close() {
+
+        textures.values.forEach {
+            it.delete()
+        }
+
+        textures.clear()
+        charInfoMap.clear()
 
     }
+
+    data class CharData(val pos0: Vec2i, val pos1: Vec2i, val advanceWidth: Int, val leftSideBearing: Int)
 
 }

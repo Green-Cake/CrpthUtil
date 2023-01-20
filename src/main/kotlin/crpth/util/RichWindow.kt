@@ -5,6 +5,7 @@ import crpth.util.mouse.MouseAction
 import crpth.util.mouse.MouseButton
 import crpth.util.vec.Vec2f
 import org.lwjgl.glfw.GLFW
+import org.lwjgl.opengl.GL11
 import org.lwjgl.system.MemoryStack
 
 /**
@@ -36,6 +37,12 @@ class RichWindow(val window: Window, var fOnClicked: (button: MouseButton, actio
 
         GLFW.glfwSetMouseButtonCallback(window.id) { _, button, action, _, ->
             onClicked(MouseButton.from(button), MouseAction.from(action))
+        }
+
+        GLFW.glfwSetWindowSizeCallback(window.id) { window, width, height ->
+
+            GL11.glViewport(0, 0, width, height)
+
         }
 
         MemoryStack.stackPush().use {

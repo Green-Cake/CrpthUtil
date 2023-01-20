@@ -15,7 +15,7 @@ import org.lwjgl.glfw.GLFWErrorCallback
 import org.lwjgl.opengl.GL
 import org.lwjgl.opengl.GL11
 
-abstract class AppBase(val domain: String, val title: String, val windowSize: Vec2i = Vec2i(1280, 960)) {
+abstract class AppBase(val domain: String, val title: String, val initialWindowSize: Vec2i = Vec2i(1280, 960)) {
 
     open val logger: Logger get() = Logger.Muted
 
@@ -59,7 +59,7 @@ abstract class AppBase(val domain: String, val title: String, val windowSize: Ve
         GLFW.glfwWindowHint(GLFW.GLFW_VISIBLE, 1)
         GLFW.glfwWindowHint(GLFW.GLFW_RESIZABLE, 1)
 
-        window = Window.create(windowSize.x, windowSize.y, title)
+        window = Window.create(initialWindowSize.x, initialWindowSize.y, title)
         if(window.isNull()) {
             throw RuntimeException("Failed to create GLFW window...")
         }
@@ -103,7 +103,11 @@ abstract class AppBase(val domain: String, val title: String, val windowSize: Ve
             GLFW.glfwPollEvents()
         }
 
-    } finally {}
+    } finally {
+
+        resourceManager.close()
+
+    }
 
     protected open fun update() {
 

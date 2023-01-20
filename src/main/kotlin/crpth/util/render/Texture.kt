@@ -6,13 +6,15 @@ import org.lwjgl.opengl.GL11.*
 import java.awt.image.BufferedImage
 import java.io.File
 import java.nio.ByteBuffer
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 
 @JvmInline
-value class Texture(override val id: Int) : ITexture {
+value class Texture(val id: Int) {
 
     companion object {
 
-        @Deprecated("Use ResourceManager instead!", ReplaceWith("ResourceManager.STATIC.loadTexture(path)"))
         internal fun load(domain: String, path: String): Texture {
 
             val (pixels, size) = ResourceAccessor.loadTextureImageBufAndSize(ClassLoader.getSystemResourceAsStream("assets/$domain/textures/$path") ?: throw NoSuchFileException(File(
@@ -57,18 +59,50 @@ value class Texture(override val id: Int) : ITexture {
             return Texture(id)
         }
 
-        @Deprecated("Use ResourceManager instead!", ReplaceWith("ResourceManager.STATIC.loadTextureLazy(path)"))
         internal fun createLazyInit(domain: String, path: String): Lazy<Texture> = lazy {
             load(domain, path)
         }
 
     }
 
-    override fun <R> use(block: ITexture.()->R): R = try {
-        bind()
-        block(this)
-    } finally {
-        debind()
+    /**
+     * Be careful! this function works only when the texture has been bound; otherwise never call this.
+     */
+    fun getWidth(): Int = glGetTexLevelParameteri(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH)
+
+    /**
+     * Be careful! this function works only when the texture has been bound; otherwise never call this.
+     */
+    fun getHeight(): Int = glGetTexLevelParameteri(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT)
+
+    /**
+     * Be careful! this function works only when the texture has been bound; otherwise never call this.
+     */
+    fun getAspectRatio() = getWidth().toFloat() / getHeight().toFloat()
+
+    fun bind() {
+        glBindTexture(GL_TEXTURE_2D, id)
+    }
+
+    fun debind() {
+        glBindTexture(GL_TEXTURE_2D, 0)
+    }
+
+    fun delete() {
+        glDeleteTextures(id)
+    }
+
+    @OptIn(ExperimentalContracts::class)
+    inline fun <R> use(block: Texture.()->R): R {
+        contract {
+            callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+        }
+        return try {
+            bind()
+            block(this)
+        } finally {
+            debind()
+        }
     }
 
 }

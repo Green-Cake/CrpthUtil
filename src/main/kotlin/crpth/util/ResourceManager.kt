@@ -1,8 +1,9 @@
 package crpth.util
 
 import crpth.util.render.Texture
-import crpth.util.sound.NewSoundManager
-import javax.sound.sampled.Clip
+import crpth.util.sound.ALSoundManager
+import crpth.util.sound.Sound
+import javax.sound.sampled.UnsupportedAudioFileException
 
 class ResourceManager(val domain: String) : AutoCloseable {
 
@@ -12,9 +13,65 @@ class ResourceManager(val domain: String) : AutoCloseable {
 
     }
 
-    val textures = mutableSetOf<Texture>()
+    private val sounds = mutableMapOf<Int, Sound>()
 
-    val sounds = mutableMapOf<String, Clip>()
+    private val textures = mutableSetOf<Texture>()
+
+    //audio start
+
+    //only unique in this ResourceManager instance!
+    private fun uniqueSoundID() = (sounds.keys.maxOrNull() ?: 0) + 1
+
+    fun init() {
+        ALSoundManager.init()
+    }
+
+    fun loadOgg(path: String, id: Int=uniqueSoundID()): Int {
+        sounds[id] = ALSoundManager.loadOgg(ResourceAccessor.loadSoundFile(domain, path))
+        return id
+    }
+
+    fun loadOggMono(path: String, id: Int=uniqueSoundID(), useLeft: Boolean = false): Int {
+        sounds[id] = ALSoundManager.loadOggMono(ResourceAccessor.loadSoundFile(domain, path), useLeft)
+        return id
+    }
+
+    fun loadWav(path: String, id: Int=uniqueSoundID()): Int {
+        sounds[id] = ALSoundManager.loadWav(ResourceAccessor.getAudioInputStream(domain, path)!!)
+        return id
+    }
+
+    fun loadWavMono(path: String, id: Int=uniqueSoundID(), useLeft: Boolean = false): Int {
+        sounds[id] = ALSoundManager.loadWavMono(ResourceAccessor.getAudioInputStream(domain, path)!!, useLeft)
+        return id
+    }
+
+    fun load(path: String, id: Int=uniqueSoundID()): Int = when(path.split('.').last().lowercase()) {
+        "ogg" -> loadOgg(path, id)
+        "wav" -> loadWav(path, id)
+        else -> throw UnsupportedAudioFileException()
+    }
+
+    /**
+     * Forces to load sound with only 1 channel.
+     */
+    fun loadMono(path: String, id: Int=uniqueSoundID(), useLeft: Boolean=false): Int = when(path.split('.').last().lowercase()) {
+        "ogg" -> loadOggMono(path, id, useLeft)
+        "wav" -> loadWavMono(path, id, useLeft)
+        else -> throw UnsupportedAudioFileException()
+    }
+
+    fun getSound(id: Int) = sounds[id]
+
+    fun play(id: Int) = sounds[id]?.play()
+
+    fun pause(id: Int) = sounds[id]?.pause()
+
+    fun rewind(id: Int) = sounds[id]?.rewind()
+
+    fun stop(id: Int) = sounds[id]?.stop()
+
+    //audio end
 
     fun loadTexture(path: String): Texture {
         val tex = Texture.load(domain, path)
@@ -28,45 +85,25 @@ class ResourceManager(val domain: String) : AutoCloseable {
         tex
     }
 
-    fun loadSound(name: String, path: String) {
-
-        sounds[name] = NewSoundManager.createClip(domain, path)
-
-    }
-
-    fun freeResources() {
+    private fun freeResources() {
 
         textures.forEach {
             it.delete()
         }
 
+        textures.clear()
+
         sounds.values.forEach {
-            it.stop()
-            it.flush()
-            it.close()
+            it.delete()
         }
 
-        textures.clear()
         sounds.clear()
 
     }
 
-    fun play(name: String) = sounds[name]?.start()
-
-    fun playRandom(vararg names: String) = play(names.random())
-
-    fun stop(name: String) {
-        sounds[name]?.stop()
-        sounds[name]?.flush()
-    }
-
-    fun freeSound(name: String) {
-        sounds[name]?.close()
-        sounds.remove(name)
-    }
-
     override fun close() {
         freeResources()
+        ALSoundManager.close()
     }
 
 }
